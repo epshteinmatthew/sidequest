@@ -19,17 +19,22 @@ def onRoad(point, way, tolerance_m=15) -> bool:
 #run once at 3pm daily
 def writeRandomCoords() -> bool:
     try:
+        #load shapefile and select u district shape
         gdf = geopandas.read_file("Neighborhood_Map_Atlas_Districts/Neighborhood_Map_Atlas_Districts.shp")
         shape = gdf.geometry.iloc[19]
-        #minx, miny, maxx, maxy
+        #minx, miny, maxx, maxy -- the rectangular bounds of the shape
         bounds = shape.bounds
         point = Point()
         inbounds = False
         while inbounds == False:
+            #generate a random point between the bounds
             point = Point(np.random.uniform(bounds[0], bounds[2]), np.random.uniform(bounds[1], bounds[3]))
+            #check if the random point is in the shape
             inbounds = geopandas.GeoSeries([shape]).contains(point).item()
+        #convert from stateplane to normal coordinates
         coordinates = stateplane.to_latlon(point.x, point.y, 2285)
         with open("coordinates.json", "w") as file:
+            #wrtie coordinates to file
             file.write(
                 '{"lat": ' + coordinates[0].__str__()
                 + ', "long": ' + coordinates[1].__str__()
@@ -41,6 +46,7 @@ def writeRandomCoords() -> bool:
 
 
 def writeSelectedCoords(lat: float, lon: float) -> bool:
+    #same as previous function but you pass in the coordinates
     try:
         gdf = geopandas.read_file("Neighborhood_Map_Atlas_Districts/Neighborhood_Map_Atlas_Districts.shp")
         shape = geopandas.GeoSeries([gdf.geometry.iloc[19]])
