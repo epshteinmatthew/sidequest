@@ -6,9 +6,12 @@ import stateplane
 import overpy
 from geopy.distance import geodesic
 import json
-from flask import Flask,jsonify
+from flask import Flask, jsonify, url_for, redirect
 import pytz
 from datetime import datetime
+from authlib.integrations.flask_client import OAuth
+import os
+import setup
 
 pst = pytz.timezone('America/Los_Angeles')
 
@@ -112,6 +115,10 @@ def block_road(lat, lon, name):
 
 #print(block_road(47.653231, -122.312107, "15th Avenue Northeast"))
 app = Flask(__name__)
+app.secret_key = os.urandom(12)
+
+oauth = OAuth(app)
+
 
 @app.route("/")
 def hello_world():
@@ -127,6 +134,35 @@ def get_coordinates():
 
 #https://dev.to/mar1anna/flask-app-login-with-google-3j24
 #do this
+
+
+@app.route('/google/')
+def google():
+
+    CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
+    oauth.register(
+        name='google',
+        client_id=setup.GOOGLE_CLIENT_ID,
+        client_secret=setup.GOOGLE_CLIENT_SECRET,
+        server_metadata_url=CONF_URL,
+        client_kwargs={
+            'scope': 'openid email profile'
+        }
+    )
+
+    # Redirect to google_auth function
+    redirect_uri = url_for('google_auth', _external=True)
+    print(redirect_uri)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+@app.route('/google/auth/')
+def google_auth():
+    token = oauth.google.authorize_access_token()
+    user = oauth.google.parse_id_token(token)
+    print(" Google User ", user)
+    return redirect('/')
+
+
 
 
 
