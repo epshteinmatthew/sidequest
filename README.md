@@ -1,11 +1,17 @@
 **backend todo**
 
-[] authentication
+    [ ] authentication
+    
+    [ ] rest api routes
+    
+    [ ] win verification
+    
+    [ ] api keys
+    
+    [ ] image store
 
-[] rest api routes
+**frontend todo**
+    
+    [ ] everything
 
-[] win verification
 
-[] api keys
-
-[] image store
