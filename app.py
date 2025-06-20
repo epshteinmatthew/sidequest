@@ -132,13 +132,8 @@ def get_coordinates():
             return jsonify(json.loads(file.read()))
     return "Too early!"
 
-#https://dev.to/mar1anna/flask-app-login-with-google-3j24
-#do this
-
-
 @app.route('/google/')
 def google():
-
     CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
     oauth.register(
         name='google',
@@ -158,9 +153,11 @@ def google():
 @app.route('/google/auth/')
 def google_auth():
     token = oauth.google.authorize_access_token()
-    user = oauth.google.parse_id_token(token)
-    print(" Google User ", user)
-    return redirect('/')
+    user = token['userinfo']['email']
+    if(user.split("@")[1] == "uw.edu"):
+        return redirect('/')
+    else:
+        return "not allowed"
 
 
 
