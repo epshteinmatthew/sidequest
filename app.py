@@ -6,6 +6,11 @@ import stateplane
 import overpy
 from geopy.distance import geodesic
 import json
+from flask import Flask,jsonify
+import pytz
+from datetime import datetime
+
+pst = pytz.timezone('America/Los_Angeles')
 
 
 # Check if the point is within tolerance of any way node
@@ -105,7 +110,20 @@ def block_road(lat, lon, name):
 
 
 
-print(block_road(47.653231, -122.312107, "15th Avenue Northeast"))
+#print(block_road(47.653231, -122.312107, "15th Avenue Northeast"))
+app = Flask(__name__)
+
+@app.route("/")
+def hello_world():
+    return "hello world"
+
+@app.route("/coordinates")
+def get_coordinates():
+    if (datetime.now(pst).time().hour >= 15):
+        with open("coordinates.json", "r") as file:
+            #needs to be optimized
+            return jsonify(json.loads(file.read()))
+    return "Too early!"
 
 
 
