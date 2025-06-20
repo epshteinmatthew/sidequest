@@ -10,8 +10,9 @@ import json
 
 # Check if the point is within tolerance of any way node
 def onRoad(point, way, tolerance_m=15) -> bool:
+    #check each node (point) in the road path
     for node in way.get_nodes(resolve_missing=True):
-        print(geodesic(point, (node.lat, node.lon)).meters)
+        #if we're within 15 meters of the node return true
         if geodesic(point, (node.lat, node.lon)).meters <= tolerance_m:
             return True
     return False
@@ -67,14 +68,17 @@ def writeSelectedCoords(lat: float, lon: float) -> bool:
 
 def block_road(lat, lon, name):
     blockedList = []
+    #check if road is already blocked
     with open("blocked.json", "r") as file:
         blockedList = json.loads(file.read())
     if name in blockedList:
         return False
+
+    #get overpass API
     api = overpy.Overpass()
     radius = 10  # meters
 
-    # Query for any way with a highway tag around the point
+    # Query for roads within 10m of coordinates
     query = f"""
     (
       way(around:{radius},{lat},{lon})["highway"];
@@ -85,7 +89,9 @@ def block_road(lat, lon, name):
     result = api.query(query)
 
     for way in result.ways:
+        #get the road with the passed in name
         if(way.tags.get("name", "Unnamed") == name ):
+            #if we're on the road then add the name of the road to file and write it to disk
             if(onRoad((lat, lon), way)):
                 try:
                     blockedList.append(name)
