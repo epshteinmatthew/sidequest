@@ -125,6 +125,9 @@ def get_coordinates():
             return jsonify(json.loads(file.read()))
     return "Too early!"
 
+#https://dev.to/mar1anna/flask-app-login-with-google-3j24
+#do this
+
 
 
 
