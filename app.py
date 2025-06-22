@@ -6,7 +6,7 @@ import stateplane
 import overpy
 from geopy.distance import geodesic
 import json
-from flask import Flask, jsonify, url_for, redirect
+from flask import Flask, jsonify, url_for, session
 import pytz
 from datetime import datetime
 from authlib.integrations.flask_client import OAuth
@@ -126,11 +126,14 @@ def hello_world():
 
 @app.route("/coordinates")
 def get_coordinates():
-    if (datetime.now(pst).time().hour >= 15):
-        with open("coordinates.json", "r") as file:
-            #needs to be optimized
-            return jsonify(json.loads(file.read()))
-    return "Too early!"
+    if(session.get('user') is not None):
+        if (datetime.now(pst).time().hour >= 15):
+            with open("coordinates.json", "r") as file:
+                #needs to be optimized
+                return jsonify(json.loads(file.read()))
+        return "Too early!"
+    else:
+        return "log in!"
 
 @app.route('/google/')
 def google():
@@ -155,10 +158,17 @@ def google_auth():
     token = oauth.google.authorize_access_token()
     user = token['userinfo']['email']
     if(user.split("@")[1] == "uw.edu"):
-        return redirect('/')
+        #might want to only send the "access_token" part of this
+        session['user'] = token['userinfo']
+        return "ok", 200
     else:
-        return "not allowed"
+        return "not allowed", 403
 
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return "ok", 200
 
 
 
