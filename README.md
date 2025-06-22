@@ -1,6 +1,6 @@
 **backend todo**
 
-    [ ] authentication
+    [DONE] authentication
     
     [ ] rest api routes
     
