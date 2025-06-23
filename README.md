@@ -2,13 +2,13 @@
 
     [DONE] authentication
     
-    [ ] rest api routes
+    [DONE] rest api routes
     
-    [ ] win verification
+    [DONE] win verification
     
     [ ] api keys
     
-    [ ] image store
+    [DONE] image store
 
 **frontend todo**
     
