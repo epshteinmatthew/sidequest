@@ -18,6 +18,15 @@ import setup
 pst = pytz.timezone('America/Los_Angeles')
 
 
+#run once at 3pm daily
+def startGame():
+    writeRandomCoords()
+    with open("blocked.json", "w") as file:
+        json.dump([], file)
+    if(os.path.isfile("top3/winner")):
+        os.unlink("top3/winner")
+
+
 # Check if the point is within tolerance of any way node
 def onRoad(point, way, tolerance_m=15) -> bool:
     #check each node (point) in the road path
@@ -27,7 +36,6 @@ def onRoad(point, way, tolerance_m=15) -> bool:
             return True
     return False
 
-#run once at 3pm daily
 def writeRandomCoords() -> bool:
     try:
         #load shapefile and select u district shape
@@ -128,6 +136,7 @@ def hello_world():
 
 @app.route("/coordinates")
 def get_coordinates():
+    #maybe remove this gate
     if(session.get('user') is not None):
         if (datetime.now(pst).time().hour >= 15):
             with open("coordinates.json", "r") as file:
@@ -156,7 +165,21 @@ def blockreq():
 
 @app.route("/gamestate")
 def gamestate():
-    return "todo"
+    if(session.get('user') is not None):
+        coords = (0.0, 0.0)
+        with open("coordinates.json", "r") as file:
+            j = json.loads(file.read())
+            coords = (j["lat"], j["long"])
+        blockedList = []
+        # check if road is already blocked
+        with open("blocked.json", "r") as file:
+            blockedList = json.loads(file.read())
+        won = os.path.isfile("top3/winner")
+        return jsonify(
+            {"coords" : coords, "blocked": blockedList, "won": won}
+        )
+    else:
+        return "log in!"
 
 @app.route("/win", methods=['POST'])
 def win():
