@@ -180,11 +180,12 @@ def win():
             if file.filename == '':
                 return 'No selected file', 400
             if file:
+                #change?
                 filename = "winner"
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 return "file saved", 200
         else:
-            "not winner", 400
+            return "not winner", 400
     else:
         return "log in!"
 
