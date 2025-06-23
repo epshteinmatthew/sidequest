@@ -1,4 +1,6 @@
 #objectid = 64
+import math
+
 import geopandas
 import numpy as np
 from shapely.geometry import Point
@@ -6,7 +8,7 @@ import stateplane
 import overpy
 from geopy.distance import geodesic
 import json
-from flask import Flask, jsonify, url_for, session, request
+from flask import Flask, jsonify, url_for, session, request, flash
 import pytz
 from datetime import datetime
 from authlib.integrations.flask_client import OAuth
@@ -139,8 +141,7 @@ def get_coordinates():
 @app.route("/blockroad", methods = ['POST'])
 def blockreq():
     if (session.get('user') is not None):
-        if(request.is_json):
-            rjson = request.json
+            rjson = request.args
             if (block_road(rjson["lat"], rjson['long'], rjson['name'])):
                 with open("blocked.json", "r") as file:
                     # needs to be optimized
@@ -149,8 +150,41 @@ def blockreq():
                 with open("blocked.json", "r") as file:
                     # needs to be optimized
                     return jsonify(json.loads(file.read())), 400
+    else:
+        return "log in!"
+
+
+@app.route("/gamestate")
+def gamestate():
+    return "todo"
+
+@app.route("/win", methods=['POST'])
+def win():
+    if (session.get('user') is not None):
+        coords = (0.0,0.0)
+        with open("coordinates.json", "r") as file:
+            j = json.loads(file.read())
+            coords = (j["lat"], j["long"])
+        rargs = request.args
+        dist = 1000
+        try:
+            dist = math.sqrt((float(rargs['lat']) - float(coords[0])) ** 2 + (float(rargs['long']) - float(coords[0])))
+        except:
+            return "bad arguments", 400
+        if(dist <= 15):
+            if 'file' not in request.files:
+                return 'No file', 400
+            file = request.files['file']
+            # If the user does not select a file, the browser submits an
+            # empty file without a filename.
+            if file.filename == '':
+                return 'No selected file', 400
+            if file:
+                filename = "winner"
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                return "file saved", 200
         else:
-            return "use json!"
+            "not winner", 400
     else:
         return "log in!"
 
