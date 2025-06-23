@@ -6,7 +6,7 @@ import stateplane
 import overpy
 from geopy.distance import geodesic
 import json
-from flask import Flask, jsonify, url_for, session
+from flask import Flask, jsonify, url_for, session, request
 import pytz
 from datetime import datetime
 from authlib.integrations.flask_client import OAuth
@@ -132,6 +132,25 @@ def get_coordinates():
                 #needs to be optimized
                 return jsonify(json.loads(file.read()))
         return "Too early!"
+    else:
+        return "log in!"
+
+
+@app.route("/blockroad", methods = ['POST'])
+def blockreq():
+    if (session.get('user') is not None):
+        if(request.is_json):
+            rjson = request.json
+            if (block_road(rjson["lat"], rjson['long'], rjson['name'])):
+                with open("blocked.json", "r") as file:
+                    # needs to be optimized
+                    return jsonify(json.loads(file.read())), 200
+            else:
+                with open("blocked.json", "r") as file:
+                    # needs to be optimized
+                    return jsonify(json.loads(file.read())), 400
+        else:
+            return "use json!"
     else:
         return "log in!"
 
