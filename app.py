@@ -1,5 +1,6 @@
 #objectid = 64
 import math
+import time
 
 import geopandas
 import numpy as np
@@ -14,9 +15,22 @@ from datetime import datetime
 from authlib.integrations.flask_client import OAuth
 import os
 import setup
+from google.oauth2 import id_token
+from google.auth.transport import requests
+import jwt
+
+
+
+from setup import GOOGLE_CLIENT_ID
 
 pst = pytz.timezone('America/Los_Angeles')
 
+def validate(encoded):
+    decoded = jwt.decode(encoded, setup.GOOGLE_CLIENT_SECRET, algorithms=["HS256"])
+    if(decoded['org'] == "uw.edu" and decoded['exp'] >= time.time() and decoded['cid'] == GOOGLE_CLIENT_ID):
+        return True
+    else:
+        return False
 
 #run once at 3pm daily
 def startGame():
@@ -137,7 +151,7 @@ def hello_world():
 @app.route("/coordinates")
 def get_coordinates():
     #maybe remove this gate
-    if(session.get('user') is not None):
+    if(validate(request.args['jwt'])):
         if (datetime.now(pst).time().hour >= 15):
             with open("coordinates.json", "r") as file:
                 #needs to be optimized
@@ -149,7 +163,7 @@ def get_coordinates():
 
 @app.route("/blockroad", methods = ['POST'])
 def blockreq():
-    if (session.get('user') is not None):
+    if (validate(request.args['jwt'])):
             rjson = request.args
             if (block_road(rjson["lat"], rjson['long'], rjson['name'])):
                 with open("blocked.json", "r") as file:
@@ -165,7 +179,7 @@ def blockreq():
 
 @app.route("/gamestate")
 def gamestate():
-    if(session.get('user') is not None):
+    if(validate(request.args['jwt'])):
         coords = (0.0, 0.0)
         with open("coordinates.json", "r") as file:
             j = json.loads(file.read())
@@ -183,7 +197,7 @@ def gamestate():
 
 @app.route("/win", methods=['POST'])
 def win():
-    if (session.get('user') is not None):
+    if (validate(request.args['jwt'])):
         coords = (0.0,0.0)
         with open("coordinates.json", "r") as file:
             j = json.loads(file.read())
@@ -212,40 +226,22 @@ def win():
     else:
         return "log in!"
 
-@app.route('/google/')
+@app.route('/google', methods=['POST'])
 def google():
     CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
-    oauth.register(
-        name='google',
-        client_id=setup.GOOGLE_CLIENT_ID,
-        client_secret=setup.GOOGLE_CLIENT_SECRET,
-        server_metadata_url=CONF_URL,
-        client_kwargs={
-            'scope': 'openid email profile'
-        }
-    )
-
-    # Redirect to google_auth function
-    redirect_uri = url_for('google_auth', _external=True)
-    print(redirect_uri)
-    return oauth.google.authorize_redirect(redirect_uri)
-
-@app.route('/google/auth/')
-def google_auth():
-    token = oauth.google.authorize_access_token()
-    user = token['userinfo']['email']
-    if(user.split("@")[1] == "uw.edu"):
-        #might want to only send the "access_token" part of this
-        session['user'] = token['userinfo']
-        return "ok", 200
-    else:
+    try:
+        # Specify the WEB_CLIENT_ID of the app that accesses the backend:
+        idinfo = id_token.verify_oauth2_token(request.args['token'], requests.Request(), GOOGLE_CLIENT_ID)
+        if (idinfo['aud'] == GOOGLE_CLIENT_ID and 'accounts.google.com' in idinfo['iss'] and idinfo['hd'] == "uw.edu" and idinfo['exp'] >= time.time()):
+            #plus one day
+            encoded_jwt = jwt.encode({'org': idinfo['hd'], 'cid': idinfo['aud'], 'exp': time.time() + 86400}, setup.GOOGLE_CLIENT_SECRET, algorithm="HS256")
+            return encoded_jwt, 200
+        else:
+            return "not allowed", 403
+    except:
         return "not allowed", 403
 
 
-@app.route('/logout')
-def logout():
-    session.pop('user', None)
-    return "ok", 200
 
 
 
