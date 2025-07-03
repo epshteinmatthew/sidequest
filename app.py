@@ -98,6 +98,9 @@ def writeSelectedCoords(lat: float, lon: float) -> bool:
     except:
         return False
 
+
+
+
 def block_road(lat, lon, name):
     blockedList = []
     #check if road is already blocked
@@ -138,6 +141,7 @@ def block_road(lat, lon, name):
 
 
 #print(block_road(47.653231, -122.312107, "15th Avenue Northeast"))
+
 app = Flask(__name__)
 app.secret_key = os.urandom(12)
 
@@ -151,19 +155,46 @@ def hello_world():
 @app.route("/coordinates")
 def get_coordinates():
     #maybe remove this gate
-    if(validate(request.args['jwt'])):
+    if(validate(request.headers['Authorization'])):
         if (datetime.now(pst).time().hour >= 15):
             with open("coordinates.json", "r") as file:
-                #needs to be optimized
+                    #needs to be optimized
                 return jsonify(json.loads(file.read()))
         return "Too early!"
     else:
         return "log in!"
 
 
+@app.route("/blockable_roads")
+def get_blockable_roads():
+    if (validate(request.headers['Authorization'])):
+        blockedList = []
+        # check if road is already blocked
+        with open("blocked.json", "r") as file:
+            blockedList = json.loads(file.read())
+        # get overpass API
+        api = overpy.Overpass()
+        radius = 10  # meters
+
+        # Query for roads within 10m of coordinates
+        query = f"""
+                (
+                  way(around:{radius},{request.args['lat']},{request.args['long']})["highway"];
+                );
+                out body;
+                """
+
+        result = api.query(query)
+
+        return jsonify([way.tags.get("name", "Unnamed") for way in result.ways if
+                way.tags.get("name", "Unnamed") not in blockedList])
+    else:
+        return "log in!"
+
+
 @app.route("/blockroad", methods = ['POST'])
 def blockreq():
-    if (validate(request.args['jwt'])):
+    if (validate(request.headers['Authorization'])):
             rjson = request.args
             if (block_road(rjson["lat"], rjson['long'], rjson['name'])):
                 with open("blocked.json", "r") as file:
@@ -179,7 +210,7 @@ def blockreq():
 
 @app.route("/gamestate")
 def gamestate():
-    if(validate(request.args['jwt'])):
+    if(validate(request.headers['Authorization'])):
         coords = (0.0, 0.0)
         with open("coordinates.json", "r") as file:
             j = json.loads(file.read())
@@ -197,7 +228,7 @@ def gamestate():
 
 @app.route("/win", methods=['POST'])
 def win():
-    if (validate(request.args['jwt'])):
+    if (validate(request.headers['Authorization'])):
         coords = (0.0,0.0)
         with open("coordinates.json", "r") as file:
             j = json.loads(file.read())
