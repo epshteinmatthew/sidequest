@@ -42,41 +42,42 @@ def startGame():
         os.unlink("top3/winner")
 
 
-def vincenty(lat1, long1,lat2, long2):
-    p1 = math.radians(lat1)
-    p2 = math.radians(lat2)
-    l1 = math.radians(long1)
-    l2 = math.radians(long2)
+def vincenty(lat1:float, long1:float,lat2:float, long2:float):
+    #wikipedia.com vincenty formula
     a = 6378137.0
     f = 1/298.257223563
     b = 6356752.314245
-    u1 = arctan((1-f) * math.tan(p1))
-    u2 = arctan((1-f) * math.tan(p2))
-    bigL = l2 - l1
+    u1 = arctan((1-f) * math.tan(math.radians(lat1)))
+    u2 = arctan((1-f) * math.tan(math.radians(lat2)))
+    bigL = math.radians(long2) - math.radians(long1)
     lmd = bigL
     deltalmd = 100
     sinsigma, cossigma, sigma, sinalpha, cossquaredalpha, cos2sigmasubm, C = 0,0,0,0,0,0,0
+    asquaredoverbsquaredminusone = ((a**2)/(b**2) - 1)
+    sin_u1 = math.sin(u1)
+    cos_u1 = math.cos(u1)
+    sin_u2 = math.sin(u2)
+    cos_u2 = math.cos(u2)
     while deltalmd > (10**-12):
         sinsigma = math.sqrt(
-            (math.cos(u2) * math.sin(lmd)) ** 2 +
-            (math.cos(u1) * math.sin(u2) - math.sin(u1) * math.cos(u2) * math.cos(lmd)) ** 2
+            (cos_u2 * math.sin(lmd)) ** 2 +
+            (cos_u1 * sin_u2 - sin_u1 * cos_u2 * math.cos(lmd)) ** 2
         )
-        cossigma = math.sin(u1) * math.sin(u2) +  math.cos(u1) * math.cos(u2) * math.cos(lmd)
+        cossigma = sin_u1 * sin_u2 +  cos_u1 * cos_u2 * math.cos(lmd)
         sigma = np.arctan2(sinsigma, cossigma)
-        sinalpha = math.cos(u1) * math.cos(u2) * math.sin(lmd) / sinsigma
+        sinalpha = cos_u1 * cos_u2 * math.sin(lmd) / sinsigma
         cossquaredalpha = 1 - sinalpha ** 2
-        cos2sigmasubm = cossigma - 2 * math.sin(u1) * math.sin(u2)/cossquaredalpha
+        cos2sigmasubm = cossigma - 2 * sin_u1 * sin_u2/cossquaredalpha
         C = (f/16)*cossquaredalpha*(4+f*(4-3*cossquaredalpha))
         olmd = lmd
         lmd = bigL + (1-C)*f*sinalpha * (sigma + C*sinsigma*(cos2sigmasubm + C*cossigma * (-1 + 2*(cos2sigmasubm**2))))
         deltalmd = math.fabs(lmd - olmd)
-    usqared = cossquaredalpha * (a**2 - b**2)/(b**2)
+    usqared = cossquaredalpha * asquaredoverbsquaredminusone
     A = 1 + (usqared/16384)*(4096+usqared*(-768 + usqared *(320-175*usqared)))
     B = (usqared/1024) * (256 + usqared * (-128 + usqared * (74 - 47*usqared)))
     deltasigma = B * sinsigma * (cos2sigmasubm + (B/4)*(cossigma * (-1+2*(cos2sigmasubm ** 2)) - (B/6)*cos2sigmasubm*(-3+4*(sinsigma ** 2))*(-3*4*(cos2sigmasubm ** 2))))
-    distance = b * A *(sigma - deltasigma)
-    print(distance)
-    return distance
+    #distance
+    return b * A *(sigma - deltasigma)
 
 # Check if the point is within tolerance of any way node
 def onRoad(point, way, tolerance_m=15) -> bool:
@@ -179,6 +180,9 @@ def block_road(lat, lon, name):
 
 #print(block_road(47.653231, -122.312107, "15th Avenue Northeast"))
 
+st = time.time()
+print(vincenty(-0.76156, 135.56321, -0.7616, 135.6321))
+print(time.time() - st)
 
 app = Flask(__name__)
 app.secret_key = os.urandom(12)
