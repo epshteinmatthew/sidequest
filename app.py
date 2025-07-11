@@ -179,11 +179,6 @@ def block_road(lat, lon, name):
 
 
 #print(block_road(47.653231, -122.312107, "15th Avenue Northeast"))
-
-st = time.time()
-print(vincenty(-0.76156, 135.56321, -0.7616, 135.6321))
-print(time.time() - st)
-
 app = Flask(__name__)
 app.secret_key = os.urandom(12)
 
