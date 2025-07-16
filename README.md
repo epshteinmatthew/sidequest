@@ -6,12 +6,12 @@
     
     [DONE] win verification
     
-    [ ] api keys
+    [DONE] api keys
     
     [DONE] image store
 
 **frontend todo**
     
-    [ ] everything
+    [DONE] everything
 
 
