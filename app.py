@@ -1,6 +1,7 @@
 #objectid = 64
 import math
 import time
+import uuid
 
 import geopandas
 import numpy as np
@@ -10,7 +11,7 @@ import stateplane
 import overpy
 from geopy.distance import geodesic
 import json
-from flask import Flask, jsonify, url_for, session, request, flash
+from flask import Flask, jsonify, url_for, session, request, flash, send_file
 import pytz
 from datetime import datetime
 from authlib.integrations.flask_client import OAuth
@@ -19,18 +20,48 @@ import setup
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import jwt
+from functools import cache, lru_cache
 
 
+@lru_cache(maxsize=10)
+def get_coords(filename: str, date:datetime.date):
+    with open(filename, "r") as file:
+        j = json.loads(file.read())
+        return (j["lat"], j["long"])
 
 from setup import GOOGLE_CLIENT_ID
 
 pst = pytz.timezone('America/Los_Angeles')
 
+def generate_refresh_token() -> str:
+    key = str(uuid.uuid4()).replace('-', '')[:32]
+    print(key)
+    keys = []
+    with open("refresh.json", "r") as f:
+        keys = json.loads(f.read())
+    keys.append(key)
+    with open("refresh.json", "w") as f:
+        f.write(json.dumps(keys))
+    return key
+
+def refresh_jwt_key(refresh: str) -> str:
+    with open("refresh.json", "r") as fp:
+        f = json.load(fp)
+        if(refresh in f):
+            encoded_jwt = jwt.encode({'org':"uw.edu", 'cid': GOOGLE_CLIENT_ID, 'exp': time.time() + 86400},
+                                     setup.GOOGLE_CLIENT_SECRET, algorithm="HS256")
+            return encoded_jwt
+        return "not allowed"
+
+
 def validate(encoded):
-    decoded = jwt.decode(encoded, setup.GOOGLE_CLIENT_SECRET, algorithms=["HS256"])
-    if(decoded['org'] == "uw.edu" and decoded['exp'] >= time.time() and decoded['cid'] == GOOGLE_CLIENT_ID):
-        return True
-    else:
+    try:
+        decoded = jwt.decode(encoded, setup.GOOGLE_CLIENT_SECRET, algorithms=["HS256"])
+        if(decoded['org'] == "uw.edu" and decoded['exp'] >= time.time() and decoded['cid'] == GOOGLE_CLIENT_ID):
+            return True
+        else:
+            return False
+    except:
         return False
 
 #run once at 3pm daily
@@ -42,6 +73,7 @@ def startGame():
         os.unlink("top3/winner")
 
 
+@lru_cache(maxsize=100)
 def vincenty(lat1:float, long1:float,lat2:float, long2:float):
     #wikipedia.com vincenty formula
     a = 6378137.0
@@ -248,10 +280,7 @@ def blockreq():
 @app.route("/gamestate")
 def gamestate():
     if(validate(request.headers['Authorization'])):
-        coords = (0.0, 0.0)
-        with open("coordinates.json", "r") as file:
-            j = json.loads(file.read())
-            coords = (j["lat"], j["long"])
+        coords = get_coords("coordinates.json", datetime.today())
         blockedList = []
         # check if road is already blocked
         with open("blocked.json", "r") as file:
@@ -266,17 +295,14 @@ def gamestate():
 @app.route("/win", methods=['POST'])
 def win():
     if (validate(request.headers['Authorization'])):
-        coords = (0.0,0.0)
-        with open("coordinates.json", "r") as file:
-            j = json.loads(file.read())
-            coords = (j["lat"], j["long"])
+        coords = get_coords("coordinates.json", datetime.now(pst).date())
         rargs = request.args
         dist = 1000
         try:
             dist = vincenty(float(rargs['lat']), float(rargs['long']), float(coords[0]), float(coords[1]))
         except:
             return "bad arguments", 400
-        if(dist <= 15):
+        if(dist <= 15 and os.path.isfile("top3/winner") == False):
             if 'file' not in request.files:
                 return 'No file', 400
             file = request.files['file']
@@ -303,21 +329,27 @@ def google():
         if (idinfo['aud'] == GOOGLE_CLIENT_ID and 'accounts.google.com' in idinfo['iss'] and idinfo['hd'] == "uw.edu" and idinfo['exp'] >= time.time()):
             #plus one day
             encoded_jwt = jwt.encode({'org': idinfo['hd'], 'cid': idinfo['aud'], 'exp': time.time() + 86400}, setup.GOOGLE_CLIENT_SECRET, algorithm="HS256")
-            return encoded_jwt, 200
+            refresh = generate_refresh_token()
+            return jsonify({"jwt": encoded_jwt, "refresh" : refresh}), 200
         else:
             return "not allowed", 403
     except:
         return "not allowed", 403
+
+@app.route("/refresh", methods=['POST'])
+def refresh():
+    res = refresh_jwt_key(request.headers['Authorization'])
+    if(res == "now allowed"):
+        return res, 403
+    return res, 200
 
 
 
 @app.route("/gamestate_dist", methods=['GET'])
 def dist_and_direction():
     if (validate(request.headers['Authorization'])):
-        coords = (0.0,0.0)
-        with open("coordinates.json", "r") as file:
-            j = json.loads(file.read())
-            coords = (j["lat"], j["long"])
+        coords = get_coords("coordinates.json", datetime.now(pst).date())
+
         rargs = request.args
         dist = 1000
         try:
@@ -331,6 +363,32 @@ def dist_and_direction():
         })
     else:
         return "log in!"
+
+
+@app.route("/logout", methods=['POST'])
+def logout():
+    try:
+        refresh = request.headers['Authorization']
+        f = []
+        with open("refresh.json", "r") as fp:
+            f = json.load(fp)
+        if (refresh in f):
+            f.remove(refresh)
+        with open("refresh.json", "w") as fp:
+            json.dump(fp = fp, obj= f)
+        return "logged out"
+    except:
+        return "server error", 500
+
+@app.route("/winphoto", methods = ['GET'])
+def winphoto():
+    if(os.path.isfile("top3/winphoto")):
+        #no validation here? subject to change
+        return send_file("top3/winphoto", mimetype="image/jpg")
+    return "no winner", 500
+
+
+
 
 
 
